@@ -1,0 +1,235 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+html_document:
+keep_md: true
+---
+
+This is the first peer assessment for the Johns Hopkins Reproducible Research 
+class on Coursera. Full details of the assignment can be found in the 
+accompanying README.md file in this repository. Essentially, however, we load
+some data captured from wearable tech and analyse this to answer the following
+questions:
+
+1. What is mean total number of steps taken per day?
+2. What is the average daily activity pattern?
+3. Are there differences in activity patterns between weekdays and weekends?
+
+The following is a complete breakdown of the steps taken to perform this 
+analysis, along with any relevant code, code output, plots and the results. 
+
+
+## Loading and preprocessing the data
+
+The first step in our analysis is to make sure we've got the raw data! 
+The raw data was included in the repository when we forked this, but just in 
+case, the code below will download/extract the raw data when and if necessary.
+
+```{r}
+# Download the activity.zip file if we don't already have this
+dataUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+zipFile <- "./activity.zip"
+if (!file.exists(zipFile)) {
+    download.file(dataUrl, zipFile, method="curl", mode = "wb")
+}
+
+# Extract the zip file if necessary
+dataFile <- "./activity.csv"
+if (!file.exists(dataFile)) {
+    unzip(zipFile)
+}
+```
+
+Then we load the activity data into a data frame tbl and assign this to the 
+`activity` variable.
+
+```{r, results='hide', message=F, warning=F}
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(lattice)
+
+activity <- tbl_df(read.csv(dataFile))
+```
+
+Now we're ready to perform some data analysis!
+
+
+## What is mean total number of steps taken per day?
+
+For this part of the anhalysis we ignore NA values. We start by creating a 
+histogram of the total number of steps taken each day.
+
+```{r}
+# Create a daily summary of the activity data
+daily <- activity %>%
+    group_by(date) %>%
+    summarise(steps=sum(steps, na.rm = T))
+
+# Now plot a histogram showing the frequency with which various different step
+# counts occur
+hist(daily$steps, 
+     main="Frequency distribution of daily steps", 
+     xlab = "Number of Steps"
+     )
+```
+
+From the histogram, we see that there is a clear right skew (which makes sense,
+very few people are going to make a **lot** of steps each day).
+
+Now we calculate the mean and median total number of steps taken per day.
+
+```{r}
+daily_mean <- mean(daily$steps)
+daily_median <- median(daily$steps)
+message(sprintf(
+    "Mean daily steps: %.2f\nMedian daily steps: %d", daily_mean, daily_median
+))
+```
+
+
+## What is the average daily activity pattern?
+
+In this part of the assignment we try to see daily walking patterns so we look 
+at the average number of steps taken during any part/interval of the day, over 
+the course of the whole experiment.
+
+We start by grouping the data appropriately. Then we make a time series plot 
+(i.e. type = "l") of the 5-minute interval (x-axis) and the average number of 
+steps taken, averaged across all days (y-axis).
+
+```{r}
+# Group the activity data by interval and summarise average daily activity 
+# during that interval over the course of the experiment
+by_interval <- activity %>%
+    group_by(interval) %>%
+    summarise(steps=mean(steps, na.rm = T))
+
+# Make a quick line plot of the average daily activity
+qplot(interval, steps, data=by_interval,
+      geom="line",
+      main = "Daily walking patterns (average steps ea. 5 minutes)"
+      )
+```
+
+Then we calculate the **most active** part of the day, as defined by the 
+5-minute interval, with the maximum average number of steps across all of the 
+days in the experiment.
+
+```{r}
+peak_interval <- by_interval[which.max(by_interval$steps),]
+message(sprintf(
+    "Peak activity of %.2f steps during interval %d", 
+    peak_interval$steps, 
+    peak_interval$interval
+    ))
+```
+
+## Imputing missing values
+
+In this part of the assignment we identify periods with missing data and try to
+impute values for those periods. 
+
+We start by calculating the total number of missing values in the dataset (i.e. 
+the total number of rows with NAs).
+
+```{r}
+partial_rows <- sum(!complete.cases(activity))
+message(sprintf("%d rows are incomplete", partial_rows))
+```
+
+Now we implute values for those rows simply by taking the average value for the
+corresponding 5-minute time interval and create a new dataset (`imputed) that is 
+equal to the original activity dataset, only with the missing data filled in.
+
+```{r}
+imputed <- left_join(activity, by_interval, by="interval")
+imputed[is.na(imputed$steps.x),1] <- imputed[is.na(imputed$steps.x),"steps.y"]
+```
+
+Now we make a histogram of the total number of steps taken each day and 
+calculate the mean/median total number of steps taken per day using the imputed
+data. 
+
+```{r}
+# Create a daily summary of the activity data
+daily_imputed <- imputed %>%
+    group_by(date) %>%
+    summarise(steps=sum(steps.x))
+
+# Now plot a histogram showing the frequency with which various different step
+# counts occur
+hist(daily_imputed$steps, 
+     main="Frequency distribution of imputed daily steps", 
+     xlab = "Number of Steps"
+     )
+imputed_daily_mean <- mean(daily_imputed$steps)
+imputed_daily_median <- median(daily_imputed$steps)
+message(sprintf(
+    "Mean imputed daily steps: %.2f\nMedian imputed daily steps: %.2f", 
+    imputed_daily_mean, 
+    imputed_daily_median
+))
+```
+
+Now we plot the imputed frequency distribution side by side with the original
+frequency distribution to see the impact of imputing missing data on the 
+estimates of the total daily number of steps.
+
+```{r, message=F, warning=F}
+# Collect the original and imputed data together in the same dataset
+imputed_impact <- inner_join(daily, daily_imputed, by="date") %>%
+    select(original=steps.x, imputed=steps.y)
+# Now plot the two side by side
+ggplot(
+    melt(imputed_impact), 
+    aes(value, fill = variable)
+    ) + 
+    xlab("steps") +
+    ylab("frequency") +
+    geom_histogram(position = "dodge")
+```
+
+As you might expect, by imputing values for missing values we substantially 
+reduce the number of days in which we have very little data and (simply because
+of the way we performed the imputation) we substantially increase the frequency 
+of "mean" daily steps. The end result is that the imputed data looks a bit more 
+normally distributed than the original data.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+For this part of the assignment we separate out activity on weekdays vs weekends
+and then plot the results side by side, to guage the difference. *Note* that we 
+use the imputed data for this analysis (i.e. there are no NA values).
+
+For this part the weekdays() function may be of some help here. Use the dataset with the filled-in missing values for this part.
+
+We start by creating a new factor variable `day_type` in the dataset with two levels:
+1. `weekday` and
+2. `weekend`
+
+Then we create two side by side plots for the subject's activity (average number 
+of steps) in each 5-minute interval on both weekdays and weekends.
+
+
+```{r}
+imputed$day <- weekdays(as.POSIXct.Date(imputed$date))
+imputed$day_type <- ifelse(imputed$day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+work <- imputed %>% 
+    group_by(day_type, interval) %>% 
+    summarise(steps = sum(steps.x))
+xyplot(steps ~ interval | day_type, 
+       data = work, 
+       layout = c(1, 2),
+       xlab="Interval",
+       ylab="Number of Steps",
+       panel = function(...) {
+            panel.xyplot(..., type = "l")
+       }
+       )
+
+```
+
+Clearly there's a bit more activity during weekdays early in the day (presumably 
+going to work) and generally a lot more activity during the day on weekdays. The
+subject is presumably a bit of a couch potato during the weekends!
