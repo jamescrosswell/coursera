@@ -25,25 +25,19 @@ function [J grad] = nnCostFunction(nn_params, ...
   % Setup some useful variables
   m = size(X, 1);                   % number of rows
            
-  % You need to return the following variables correctly 
-  J = 0;
-  Theta1_grad = zeros(size(Theta1));
-  Theta2_grad = zeros(size(Theta2));
-
   % Feedforward the neural network and return the cost in the variable J. 
-  a1 = [ones(m, 1) X];
-  z2 = a1 * Theta1';
-  a2 = [ones(size(z2, 1), 1) sigmoid(z2)];
-  z3 = a2 * Theta2';
-  a3 = sigmoid(z3);
-  h = a3;  
+  a1 = [ones(1, m); X'];  
+  z2 = Theta1 * a1;
+  a2 = [ones(1, m); sigmoid(z2)];  
+  a3 = sigmoid(Theta2 * a2);  
+  h  = a3;
 
   % we need to the cost for each class (K) - so we first vectorize the prediciton 
   % classes by turning each prediction y into a vector k where k[i] = i == y
-  yk = zeros(m, num_labels); 
-  for i=1:m,
-    yk(i, y(i))=1;
-  end
+  yk = zeros(num_labels, m);
+  for i=1:m
+    yk(y(i), i)=1;
+  endfor
 
   % follow the form
   J = sum((1 / m) * sum(-yk .* log(h) - (1 - yk) .* log(1 - h))); 
@@ -52,20 +46,13 @@ function [J grad] = nnCostFunction(nn_params, ...
   J = J + lambda / (2.0 * m) * sum(sum(Theta1(:,2:end) .^ 2));
   J = J + lambda / (2.0 * m) * sum(sum(Theta2(:,2:end) .^ 2));
   
-  % Part 2: Implement the backpropagation algorithm to compute the gradients
-  %         Theta1_grad and Theta2_grad. You should return the partial derivatives of
-  %         the cost function with respect to Theta1 and Theta2 in Theta1_grad and
-  %         Theta2_grad, respectively. After implementing Part 2, you can check
-  %         that your implementation is correct by running checkNNGradients
-  %
-  %         Note: The vector y passed into the function is a vector of labels
-  %               containing values from 1..K. You need to map this vector into a 
-  %               binary vector of 1's and 0's to be used with the neural network
-  %               cost function.
-  %
-  %         Hint: We recommend implementing backpropagation using a for-loop
-  %               over the training examples if you are implementing it for the 
-  %               first time.
+  % Backpropogation to compute the gradients Theta1_grad and Theta2_grad 
+  d3 = a3 - yk;  % 10 x m
+  d2 = (Theta2' * d3) .* [ones(1, m); sigmoidGradient(z2)];  % 26 x m
+
+  Theta2_grad = (1/m) * d3 * a2'; % mean of the gradients for each training example
+  Theta1_grad = (1/m) * d2(2:end, :) * a1';  % mean of the gradients for each training example
+    
   %
   % Part 3: Implement regularization with the cost function and gradients.
   %
