@@ -9,10 +9,6 @@ function [J grad] = nnCostFunction(nn_params, ...
 %   X, y, lambda) computes the cost and gradient of the neural network. The
 %   parameters for the neural network are "unrolled" into the vector
 %   nn_params and need to be converted back into the weight matrices. 
-% 
-%   The returned parameter grad should be a "unrolled" vector of the
-%   partial derivatives of the neural network.
-%
 
   % Reshape nn_params back into the parameters Theta1 and Theta2, the weight matrices
   % for our 2 layer neural network
@@ -48,24 +44,19 @@ function [J grad] = nnCostFunction(nn_params, ...
   
   % Backpropogation to compute the gradients Theta1_grad and Theta2_grad 
   d3 = a3 - yk;  % 10 x m
-  d2 = (Theta2' * d3) .* [ones(1, m); sigmoidGradient(z2)];  % 26 x m
+  d2 = (Theta2(:,2:end)' * d3) .* sigmoidGradient(z2);  % 25 x m - omit the bias
 
   Theta2_grad = (1/m) * d3 * a2'; % mean of the gradients for each training example
-  Theta1_grad = (1/m) * d2(2:end, :) * a1';  % mean of the gradients for each training example
+  Theta1_grad = (1/m) * d2 * a1'; % mean of the gradients for each training example
     
-  %
-  % Part 3: Implement regularization with the cost function and gradients.
-  %
-  %         Hint: You can implement this around the code for
-  %               backpropagation. That is, you can compute the gradients for
-  %               the regularization separately and then add them to Theta1_grad
-  %               and Theta2_grad from Part 2.
-
+  % Regularization with the cost function and gradients.
+  Theta2_grad = Theta2_grad + ...
+                (lambda / m) * ([zeros(size(Theta2, 1), 1), Theta2(:, 2:end)]);
+  Theta1_grad = Theta1_grad + ...
+                (lambda / m) * ([zeros(size(Theta1, 1), 1), Theta1(:, 2:end)]);
 
   % Unroll gradients
   grad = [Theta1_grad(:) ; Theta2_grad(:)];
-
-
 end
 
 %!test
