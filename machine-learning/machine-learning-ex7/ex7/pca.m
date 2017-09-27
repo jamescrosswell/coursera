@@ -4,28 +4,18 @@ function [U, S] = pca(X)
 %   Returns the eigenvectors U, the eigenvalues (on diagonal) in S
 %
 
-% Useful values
-[m, n] = size(X);
+  % Useful values
+  [m, n] = size(X);
 
-% You need to return the following variables correctly.
-U = zeros(n);
-S = zeros(n);
-
-% ====================== YOUR CODE HERE ======================
-% Instructions: You should first compute the covariance matrix. Then, you
-%               should use the "svd" function to compute the eigenvectors
-%               and eigenvalues of the covariance matrix. 
-%
-% Note: When computing the covariance matrix, remember to divide by m (the
-%       number of examples).
-%
-
-
-
-
-
-
-
-% =========================================================================
-
+  % Compute the covariance matrix and pass this to svd to do the grunt work
+  sigma = 1/m * X' * X;
+  [U,S,V] = svd(sigma);
+  
 end
+
+%!test
+%! load ('ex7data1.mat');
+%! [X_norm, mu, sigma] = featureNormalize(X);
+%! [U, S] = pca(X_norm);
+%! assert(U(1,1), -0.707107, 1e-6);
+%! assert(U(2,1), -0.707107, 1e-6);

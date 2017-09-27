@@ -4,23 +4,16 @@ function Z = projectData(X, U, K)
 %   Z = projectData(X, U, K) computes the projection of 
 %   the normalized inputs X into the reduced dimensional space spanned by
 %   the first K columns of U. It returns the projected examples in Z.
-%
 
-% You need to return the following variables correctly.
-Z = zeros(size(X, 1), K);
-
-% ====================== YOUR CODE HERE ======================
-% Instructions: Compute the projection of the data using only the top K 
-%               eigenvectors in U (first K columns). 
-%               For the i-th example X(i,:), the projection on to the k-th 
-%               eigenvector is given as follows:
-%                    x = X(i, :)';
-%                    projection_k = x' * U(:, k);
-%
-
-
-
-
-% =============================================================
-
+  % Compute the projection of X onto the K dimensional subspace
+  Z = X * U(:, 1:K);
+  
 end
+
+%!test
+%! load ('ex7data1.mat');
+%! [X_norm, mu, sigma] = featureNormalize(X);
+%! [U, S] = pca(X_norm);
+%! K = 1;
+%! Z = projectData(X_norm, U, K);
+%! assert(Z(1), 1.481, 1e-3);
